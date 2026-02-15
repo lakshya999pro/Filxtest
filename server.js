@@ -80,7 +80,7 @@ async function getAllData() {
 // WebSocket episode fetcher
 function getEpisodesFromWebSocket(movieKey, totalSeasons = 1) {
     return new Promise((resolve, reject) => {
-        const ws = new WebSocket('wss://chilflix-410be-default-rtdb.asia-southeast1.firebasedatabase.app/.ws?ns=chilflix-410be-default-rtdb&v=5');
+        const ws = new WebSocket('wss://s-apse1b-nss-210.asia-southeast1.firebasedatabase.app/.ws?ns=chilflix-410be-default-rtdb&v=5');
         const seasonsData = {};
         let currentSeason = 1;
         let expectedResponses = 0;
