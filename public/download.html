@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download - StreamFlix</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🎬 StreamFlix</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/movies">Movies</a></li>
+                <li><a href="/tvshows">TV Shows</a></li>
+            </ul>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search...">
+                <button id="searchBtn">🔍</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="downloadContainer" class="download-container loading">
+            <div class="loader"></div>
+        </div>
+    </div>
+
+    <div id="searchResults" class="search-results" style="display: none;">
+        <div class="container">
+            <div class="search-header">
+                <h2>Search Results</h2>
+                <button id="closeSearch">✕</button>
+            </div>
+            <div id="resultsGrid" class="content-grid"></div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 StreamFlix. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="/script.js"></script>
+    <script>
+        let currentItem = null;
+        let currentEpisodes = {};
+
+        async function loadDownloadPage() {
+            const container = document.getElementById('downloadContainer');
+            const path = window.location.pathname;
+            const key = path.split('/')[2];
+            const urlParams = new URLSearchParams(window.location.search);
+            const specificEpisode = urlParams.get('episode');
+
+            if (!key) {
+                container.innerHTML = '<p class="error">Invalid URL</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/item/${key}`);
+                const data = await response.json();
+
+                if (data.success && data.item) {
+                    currentItem = data.item;
+                    
+                    if (specificEpisode) {
+                        // Show links for specific episode
+                        renderEpisodeLinks(specificEpisode);
+                    } else if (data.item.isTV) {
+                        // Load all episodes for TV show
+                        await loadAllEpisodes(key);
+                    } else {
+                        // Show movie download links
+                        renderMovieLinks(data.item);
+                    }
+                } else {
+                    container.innerHTML = '<p class="error">Item not found</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                container.innerHTML = '<p class="error">Failed to load download page</p>';
+            }
+        }
+
+        async function loadAllEpisodes(key) {
+            const container = document.getElementById('downloadContainer');
+            container.innerHTML = `
+                <div class="download-header">
+                    <h1>📥 ${currentItem.moviename}</h1>
+                    <p class="subtitle">Select an episode to view download links</p>
+                </div>
+                <div id="episodesContainer" class="episodes-download-container loading">
+                    <div class="loader"></div>
+                </div>
+            `;
+
+            try {
+                const seasons = currentItem.newseason ? parseInt(currentItem.newseason) || 1 : 1;
+                const response = await fetch(`/api/episodes/${key}?seasons=${seasons}`);
+                const data = await response.json();
+
+                const episodesContainer = document.getElementById('episodesContainer');
+                episodesContainer.classList.remove('loading');
+
+                if (data.success && data.episodes && Object.keys(data.episodes).length > 0) {
+                    currentEpisodes = data.episodes;
+                    renderAllEpisodes(data.episodes);
+                } else {
+                    episodesContainer.innerHTML = '<p class="no-content">No episodes available</p>';
+                }
+            } catch (error) {
+                console.error('Error loading episodes:', error);
+                const episodesContainer = document.getElementById('episodesContainer');
+                episodesContainer.classList.remove('loading');
+                episodesContainer.innerHTML = '<p class="error">Failed to load episodes</p>';
+            }
+        }
+
+        function renderAllEpisodes(episodesData) {
+            const container = document.getElementById('episodesContainer');
+            let html = '';
+
+            Object.keys(episodesData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(seasonNum => {
+                const episodes = episodesData[seasonNum];
+                const episodesList = Object.keys(episodes).sort((a, b) => parseInt(a) - parseInt(b));
+
+                html += `
+                    <div class="season-download-section">
+                        <h2>Season ${seasonNum}</h2>
+                        <div class="episodes-list">
+                `;
+
+                episodesList.forEach(epKey => {
+                    const episode = episodes[epKey];
+                    const episodeNum = episode.key + 1;
+
+                    html += `
+                        <div class="episode-download-item">
+                            <div class="episode-download-info">
+                                <h3>Episode ${episodeNum}: ${episode.name}</h3>
+                                <p>${episode.overview || 'No description available'}</p>
+                                ${episode.runtime ? `<span class="meta">⏱️ ${episode.runtime} min</span>` : ''}
+                                ${episode.voteAverage ? `<span class="meta">⭐ ${episode.voteAverage}/10</span>` : ''}
+                            </div>
+                            <button class="btn btn-primary" onclick="showEpisodeLinks('${episode.link}')">
+                                📥 Get Links
+                            </button>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        async function showEpisodeLinks(link) {
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Episode Links</h2>
+                        <button onclick="this.closest('.modal').remove()">✕</button>
+                    </div>
+                    <div class="modal-body loading">
+                        <div class="loader"></div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            try {
+                const response = await fetch(`/api/links/tv/${encodeURIComponent(link)}`);
+                const data = await response.json();
+
+                const modalBody = modal.querySelector('.modal-body');
+                modalBody.classList.remove('loading');
+
+                if (data.success && data.links.length > 0) {
+                    let html = '<div class="links-list">';
+                    data.links.forEach((linkData, index) => {
+                        html += `
+                            <div class="link-item">
+                                <div class="link-info">
+                                    <strong>${linkData.type} - ${linkData.quality}</strong>
+                                    <small>${linkData.url}</small>
+                                </div>
+                                <div class="link-actions">
+                                    <button class="btn btn-small" onclick="copyToClipboard('${linkData.url}')">Copy</button>
+                                    <a href="${linkData.url}" target="_blank" class="btn btn-small btn-primary">Open</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    modalBody.innerHTML = html;
+                } else {
+                    modalBody.innerHTML = '<p class="no-content">No links available</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const modalBody = modal.querySelector('.modal-body');
+                modalBody.classList.remove('loading');
+                modalBody.innerHTML = '<p class="error">Failed to load links</p>';
+            }
+        }
+
+        function renderMovieLinks(item) {
+            const container = document.getElementById('downloadContainer');
+            container.classList.remove('loading');
+
+            if (!item.movielink) {
+                container.innerHTML = `
+                    <div class="download-header">
+                        <h1>📥 ${item.moviename}</h1>
+                        <p class="error">No download link available</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="download-header">
+                    <h1>📥 ${item.moviename}</h1>
+                    <p class="subtitle">Available download links</p>
+                </div>
+                <div id="linksContainer" class="links-container loading">
+                    <div class="loader"></div>
+                </div>
+            `;
+
+            loadMovieLinks(item.movielink);
+        }
+
+        async function loadMovieLinks(movieLink) {
+            const container = document.getElementById('linksContainer');
+
+            try {
+                const response = await fetch(`/api/links/movie/${encodeURIComponent(movieLink)}`);
+                const data = await response.json();
+
+                container.classList.remove('loading');
+
+                if (data.success && data.links.length > 0) {
+                    let html = '<div class="links-list">';
+                    data.links.forEach((linkData, index) => {
+                        html += `
+                            <div class="link-item">
+                                <div class="link-info">
+                                    <strong>${linkData.type} - ${linkData.quality}</strong>
+                                    <small>${linkData.url}</small>
+                                </div>
+                                <div class="link-actions">
+                                    <button class="btn btn-small" onclick="copyToClipboard('${linkData.url}')">Copy</button>
+                                    <a href="${linkData.url}" target="_blank" class="btn btn-small btn-primary">Open</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="no-content">No links available</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                container.classList.remove('loading');
+                container.innerHTML = '<p class="error">Failed to load links</p>';
+            }
+        }
+
+        function renderEpisodeLinks(link) {
+            const container = document.getElementById('downloadContainer');
+            container.classList.remove('loading');
+
+            container.innerHTML = `
+                <div class="download-header">
+                    <h1>📥 ${currentItem.moviename}</h1>
+                    <p class="subtitle">Episode download links</p>
+                </div>
+                <div id="linksContainer" class="links-container loading">
+                    <div class="loader"></div>
+                </div>
+            `;
+
+            loadEpisodeLinksData(link);
+        }
+
+        async function loadEpisodeLinksData(link) {
+            const container = document.getElementById('linksContainer');
+
+            try {
+                const response = await fetch(`/api/links/tv/${encodeURIComponent(link)}`);
+                const data = await response.json();
+
+                container.classList.remove('loading');
+
+                if (data.success && data.links.length > 0) {
+                    let html = '<div class="links-list">';
+                    data.links.forEach((linkData, index) => {
+                        html += `
+                            <div class="link-item">
+                                <div class="link-info">
+                                    <strong>${linkData.type} - ${linkData.quality}</strong>
+                                    <small>${linkData.url}</small>
+                                </div>
+                                <div class="link-actions">
+                                    <button class="btn btn-small" onclick="copyToClipboard('${linkData.url}')">Copy</button>
+                                    <a href="${linkData.url}" target="_blank" class="btn btn-small btn-primary">Open</a>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="no-content">No links available</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                container.classList.remove('loading');
+                container.innerHTML = '<p class="error">Failed to load links</p>';
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Link copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy link');
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadDownloadPage);
+    </script>
+</body>
+</html>

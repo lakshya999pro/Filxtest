@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Details - StreamFlix</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <h1>🎬 StreamFlix</h1>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="/">Home</a></li>
+                <li><a href="/movies">Movies</a></li>
+                <li><a href="/tvshows">TV Shows</a></li>
+            </ul>
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search...">
+                <button id="searchBtn">🔍</button>
+            </div>
+        </div>
+    </nav>
+
+    <div id="detailsContainer" class="details-container loading">
+        <div class="loader"></div>
+    </div>
+
+    <div id="searchResults" class="search-results" style="display: none;">
+        <div class="container">
+            <div class="search-header">
+                <h2>Search Results</h2>
+                <button id="closeSearch">✕</button>
+            </div>
+            <div id="resultsGrid" class="content-grid"></div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 StreamFlix. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="/script.js"></script>
+    <script>
+        let currentItem = null;
+        let currentEpisodes = {};
+
+        async function loadDetails() {
+            const container = document.getElementById('detailsContainer');
+            const path = window.location.pathname;
+            const pathParts = path.split('/');
+            const type = pathParts[1]; // 'movie' or 'tvshow'
+            const key = pathParts[2];
+
+            if (!key) {
+                container.innerHTML = '<p class="error">Invalid URL</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/item/${key}`);
+                const data = await response.json();
+
+                if (data.success && data.item) {
+                    currentItem = data.item;
+                    renderDetails(data.item, type);
+                    
+                    // Load episodes if it's a TV show
+                    if (type === 'tvshow' && data.item.isTV) {
+                        loadEpisodes(key);
+                    }
+                } else {
+                    container.innerHTML = '<p class="error">Item not found</p>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                container.innerHTML = '<p class="error">Failed to load details</p>';
+            }
+        }
+
+        function renderDetails(item, type) {
+            const container = document.getElementById('detailsContainer');
+            container.classList.remove('loading');
+
+            const posterUrl = item.movieposter 
+                ? `https://image.tmdb.org/t/p/w500/${item.movieposter}`
+                : 'https://via.placeholder.com/500x750?text=No+Poster';
+
+            const bannerUrl = item.moviebanner
+                ? `https://image.tmdb.org/t/p/original/${item.moviebanner}`
+                : posterUrl;
+
+            container.innerHTML = `
+                <div class="details-banner" style="background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url('${bannerUrl}');">
+                    <div class="container">
+                        <div class="details-content">
+                            <div class="details-poster">
+                                <img src="${posterUrl}" alt="${item.moviename}">
+                            </div>
+                            <div class="details-info">
+                                <h1>${item.moviename || 'Unknown Title'}</h1>
+                                <div class="details-meta">
+                                    ${item.movieyear ? `<span class="year">📅 ${item.movieyear}</span>` : ''}
+                                    ${item.movierating ? `<span class="rating">⭐ ${item.movierating}/10</span>` : ''}
+                                    ${item.movieduration ? `<span class="duration">⏱️ ${item.movieduration}</span>` : ''}
+                                    ${item.movietype ? `<span class="type">${item.movietype}</span>` : ''}
+                                </div>
+                                ${item.movieinfo ? `<div class="genres">${item.movieinfo.split('/').map(g => `<span class="genre">${g.trim()}</span>`).join('')}</div>` : ''}
+                                ${item.moviedesc ? `<p class="description">${item.moviedesc}</p>` : ''}
+                                <div class="actions">
+                                    ${type === 'movie' ? `
+                                        <button class="btn btn-primary" onclick="viewMovie()">▶️ Watch Now</button>
+                                        <a href="/download/${item.moviekey}" class="btn btn-secondary">📥 Download</a>
+                                    ` : `
+                                        <a href="/download/${item.moviekey}" class="btn btn-primary">📥 View Episodes</a>
+                                    `}
+                                    ${item.movietrailer ? `<button class="btn btn-secondary" onclick="window.open('${item.movietrailer}', '_blank')">🎬 Trailer</button>` : ''}
+                                    ${item.movieimdb ? `<button class="btn btn-secondary" onclick="window.open('https://www.imdb.com/title/${item.movieimdb}', '_blank')">IMDb</button>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                ${type === 'tvshow' ? '<div class="container"><div id="episodesSection" class="episodes-section loading"><div class="loader"></div></div></div>' : ''}
+            `;
+        }
+
+        async function loadEpisodes(key) {
+            const section = document.getElementById('episodesSection');
+            
+            try {
+                // Try to determine number of seasons from item data
+                const seasons = currentItem.newseason ? parseInt(currentItem.newseason) || 1 : 1;
+                
+                const response = await fetch(`/api/episodes/${key}?seasons=${seasons}`);
+                const data = await response.json();
+
+                section.classList.remove('loading');
+
+                if (data.success && data.episodes && Object.keys(data.episodes).length > 0) {
+                    currentEpisodes = data.episodes;
+                    renderEpisodes(data.episodes);
+                } else {
+                    section.innerHTML = '<p class="no-content">No episodes available. Episodes will be loaded from the download page.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading episodes:', error);
+                section.classList.remove('loading');
+                section.innerHTML = '<p class="error">Failed to load episodes. Please visit the download page.</p>';
+            }
+        }
+
+        function renderEpisodes(episodesData) {
+            const section = document.getElementById('episodesSection');
+            let html = '<h2>Episodes</h2>';
+
+            Object.keys(episodesData).sort((a, b) => parseInt(a) - parseInt(b)).forEach(seasonNum => {
+                const episodes = episodesData[seasonNum];
+                const episodesList = Object.keys(episodes).sort((a, b) => parseInt(a) - parseInt(b));
+
+                html += `
+                    <div class="season-section">
+                        <h3>Season ${seasonNum}</h3>
+                        <div class="episodes-grid">
+                `;
+
+                episodesList.forEach(epKey => {
+                    const episode = episodes[epKey];
+                    const stillUrl = episode.stillPath 
+                        ? `https://image.tmdb.org/t/p/w300/${episode.stillPath}`
+                        : 'https://via.placeholder.com/300x170?text=Episode+' + (episode.key + 1);
+
+                    html += `
+                        <div class="episode-card" onclick="viewEpisode('${episode.link}')">
+                            <img src="${stillUrl}" alt="${episode.name}">
+                            <div class="episode-info">
+                                <h4>E${episode.key + 1}: ${episode.name}</h4>
+                                <p>${episode.overview || 'No description available'}</p>
+                                <div class="episode-meta">
+                                    ${episode.runtime ? `<span>⏱️ ${episode.runtime} min</span>` : ''}
+                                    ${episode.voteAverage ? `<span>⭐ ${episode.voteAverage}/10</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            section.innerHTML = html;
+        }
+
+        function viewMovie() {
+            if (!currentItem || !currentItem.movielink) {
+                alert('Video link not available');
+                return;
+            }
+            window.location.href = `/download/${currentItem.moviekey}`;
+        }
+
+        function viewEpisode(link) {
+            if (!link) {
+                alert('Episode link not available');
+                return;
+            }
+            window.location.href = `/download/${currentItem.moviekey}?episode=${encodeURIComponent(link)}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', loadDetails);
+    </script>
+</body>
+</html>
