@@ -1,109 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamFlix - Home</title>
-    <link rel="stylesheet" href="styles.css">
+  <title>Admin Upload</title>
 </head>
 <body>
-    <nav class="navbar">
-        <div class="container">
-            <div class="nav-brand">
-                <h1>🎬 StreamFlix</h1>
-            </div>
-            <ul class="nav-menu">
-                <li><a href="/" class="active">Home</a></li>
-                <li><a href="/movies">Movies</a></li>
-                <li><a href="/tvshows">TV Shows</a></li>
-            </ul>
-            <div class="search-box">
-                <input type="text" id="searchInput" placeholder="Search...">
-                <button id="searchBtn">🔍</button>
-            </div>
-        </div>
-    </nav>
 
-    <div class="hero">
-        <div class="container">
-            <h1>Welcome to StreamFlix</h1>
-            <p>Your ultimate destination for movies and TV shows</p>
-        </div>
-    </div>
+<h2>Upload File</h2>
+<input type="file" id="file">
+<button onclick="upload()">Upload</button>
 
-    <div class="container">
-        <section class="content-section">
-            <h2>Latest Movies</h2>
-            <div id="moviesGrid" class="content-grid loading">
-                <div class="loader"></div>
-            </div>
-        </section>
+<p id="out"></p>
 
-        <section class="content-section">
-            <h2>Latest TV Shows</h2>
-            <div id="tvShowsGrid" class="content-grid loading">
-                <div class="loader"></div>
-            </div>
-        </section>
-    </div>
+<script>
+async function upload() {
+  const f = document.getElementById("file").files[0];
+  if (!f) return alert("Select file");
 
-    <div id="searchResults" class="search-results" style="display: none;">
-        <div class="container">
-            <div class="search-header">
-                <h2>Search Results</h2>
-                <button id="closeSearch">✕</button>
-            </div>
-            <div id="resultsGrid" class="content-grid"></div>
-        </div>
-    </div>
+  const fd = new FormData();
+  fd.append("file", f);
 
-    <footer>
-        <div class="container">
-            <p>&copy; 2024 StreamFlix. All rights reserved.</p>
-        </div>
-    </footer>
+  const res = await fetch("http://localhost:3000/upload", {
+    method: "POST",
+    body: fd
+  });
 
-    <script src="script.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                const response = await fetch('/api/home');
-                const data = await response.json();
+  const j = await res.json();
+  document.getElementById("out").innerHTML =
+    j.success ? `<a href="${j.url}" target="_blank">${j.url}</a>` : "Upload failed";
+}
+</script>
 
-                if (data.success) {
-                    renderMovies(data.movies);
-                    renderTVShows(data.tvShows);
-                } else {
-                    showError('Failed to load content');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showError('Failed to load content');
-            }
-        });
-
-        function renderMovies(movies) {
-            const grid = document.getElementById('moviesGrid');
-            grid.classList.remove('loading');
-            grid.innerHTML = '';
-
-            if (movies.length === 0) {
-                grid.innerHTML = '<p class="no-content">No movies available</p>';
-                return;
-            }
-
-            movies.forEach(movie => {
-                const card = createCard(movie, 'movie');
-                grid.appendChild(card);
-            });
-        }
-
-        function renderTVShows(shows) {
-            const grid = document.getElementById('tvShowsGrid');
-            grid.classList.remove('loading');
-            grid.innerHTML = '';
-
-            if (shows.length === 0) {
+</body>
+</html>            if (shows.length === 0) {
                 grid.innerHTML = '<p class="no-content">No TV shows available</p>';
                 return;
             }
