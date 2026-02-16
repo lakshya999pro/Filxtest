@@ -1,63 +1,58 @@
-import express from "express";
-import multer from "multer";
-import fetch from "node-fetch";
-import fs from "fs";
-import cors from "cors";
+const express = require('express');
+const axios = require('axios');
+const multer = require('multer');
+const path = require('path');
 
 const app = express();
-app.use(cors());
+const upload = multer({ storage: multer.memoryStorage() }); // Store file in RAM briefly
 
-// upload temp folder
-const upload = multer({ dest: "uploads/" });
+app.use(express.static('public'));
 
-// 🔐 CONFIG (CHANGE THESE)
+// Configuration - Keep your keys safe!
 const SUPABASE_URL = "https://zrqeqghpjlycgdcofine.supabase.co";
-const SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsImtpZCI6IkprOXlDRlhEQk5zbGMxSlUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJodHRwczovL3pycWVxZ2hwamx5Y2dkY29maW5lLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJiNDAxYWY2OS0xNDUxLTQ0OGMtOWUyMy03N2M2MjI3YmVjZmMiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzcxMjU4ODcyLCJpYXQiOjE3NzEyNTUyNzIsImVtYWlsIjoiYmF0ejlwcm9AZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJlbWFpbCIsInByb3ZpZGVycyI6WyJlbWFpbCJdfSwidXNlcl9tZXRhZGF0YSI6eyJlbWFpbCI6ImJhdHo5cHJvQGdtYWlsLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwaG9uZV92ZXJpZmllZCI6ZmFsc2UsInN1YiI6ImI0MDFhZjY5LTE0NTEtNDQ4Yy05ZTIzLTc3YzYyMjdiZWNmYyJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzcxMjEwODEyfV0sInNlc3Npb25faWQiOiJkY2YyZjcwNS1iNTI2LTQ5NDAtODRmNS05MDM4Yzg0OWRjOTgiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.LzudTzxb5pFT25J1InWV5Hc1K197_RAhI-MN3sb91v4"; // backend only
-const BUCKET = "novabox-files";
-const OWNER_ID = "b401af69-1451-448c-9e23-77c6227becfc";
+const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpycWVxZ2hwamx5Y2dkY29maW5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM4OTg3MzIsImV4cCI6MjA3OTQ3NDczMn0.wWUp3WB9AqhcB6G2h2946p4Zc_U583CYJeDEIp4PJts";
+const REFRESH_TOKEN = "2wuvwry6rjmb";
+const FOLDER_ID = "b401af69-1451-448c-9e23-77c6227becfc";
 
-// 📤 upload endpoint
-app.post("/upload", upload.single("file"), async (req, res) => {
-  try {
-    const file = req.file;
-    if (!file) return res.status(400).json({ error: "No file" });
+app.post('/upload', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).send('No file uploaded.');
 
-    const filename = `${Date.now()}_${file.originalname}`;
-    const path = `${OWNER_ID}/${filename}`;
+        // STEP 1: Get Access Token
+        const authResponse = await axios.post(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, 
+            { refresh_token: REFRESH_TOKEN },
+            { headers: { 'apikey': API_KEY, 'Content-Type': 'application/json' } }
+        );
 
-    const buffer = fs.readFileSync(file.path);
+        const accessToken = authResponse.data.access_token;
 
-    const r = await fetch(
-      `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`,
-      {
-        method: "POST",
-        headers: {
-          apikey: SERVICE_ROLE_KEY,
-          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-          "Content-Type": file.mimetype
-        },
-        body: buffer
-      }
-    );
+        // STEP 2: Upload File
+        const timestamp = Math.floor(Date.now() / 1000);
+        const fileName = `${timestamp}_${req.file.originalname}`;
+        const uploadUrl = `${SUPABASE_URL}/storage/v1/object/novabox-files/${FOLDER_ID}/${fileName}`;
 
-    const data = await r.json();
-    fs.unlinkSync(file.path);
+        const uploadResponse = await axios.post(uploadUrl, req.file.buffer, {
+            headers: {
+                'apikey': API_KEY,
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': req.file.mimetype
+            }
+        });
 
-    if (!r.ok) return res.status(400).json(data);
+        // STEP 3: Generate Public Link
+        // Based on your format: https://.../public/novabox-files/FOLDER_ID/FILENAME
+        const publicLink = `${SUPABASE_URL}/storage/v1/object/public/novabox-files/${FOLDER_ID}/${fileName}`;
 
-    const publicUrl =
-      `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+        res.json({
+            success: true,
+            downloadLink: publicLink,
+            details: uploadResponse.data
+        });
 
-    res.json({
-      success: true,
-      key: data.Key,
-      url: publicUrl
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+    } catch (error) {
+        console.error(error.response ? error.response.data : error.message);
+        res.status(500).json({ error: 'Upload failed' });
+    }
 });
 
-app.listen(3000, () =>
-  console.log("✅ Server running → http://localhost:3000")
-);
+app.listen(3000, () => console.log('Server running on http://localhost:3000'));
