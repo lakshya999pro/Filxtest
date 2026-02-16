@@ -1,47 +1,51 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Admin Upload</title>
+    <meta charset="UTF-8">
+    <title>Kineflex Cloud Upload</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f0f2f5; }
+        .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #link { margin-top: 20px; word-break: break-all; color: blue; }
+    </style>
 </head>
 <body>
+    <div class="card">
+        <h2>Upload to Kineflex Storage</h2>
+        <input type="file" id="fileInput">
+        <button onclick="uploadFile()">Upload Now</button>
+        <div id="status"></div>
+        <div id="link"></div>
+    </div>
 
-<h2>Upload File</h2>
-<input type="file" id="file">
-<button onclick="upload()">Upload</button>
+    <script>
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const status = document.getElementById('status');
+            const linkDiv = document.getElementById('link');
 
-<p id="out"></p>
+            if (fileInput.files.length === 0) return alert("Select a file");
 
-<script>
-async function upload() {
-  const f = document.getElementById("file").files[0];
-  if (!f) return alert("Select file");
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
 
-  const fd = new FormData();
-  fd.append("file", f);
+            status.innerText = "Uploading...";
+            linkDiv.innerHTML = "";
 
-  const res = await fetch("http://localhost:3000/upload", {
-    method: "POST",
-    body: fd
-  });
+            try {
+                const response = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await response.json();
 
-  const j = await res.json();
-  document.getElementById("out").innerHTML =
-    j.success ? `<a href="${j.url}" target="_blank">${j.url}</a>` : "Upload failed";
-}
-</script>
-
-</body>
-</html>            if (shows.length === 0) {
-                grid.innerHTML = '<p class="no-content">No TV shows available</p>';
-                return;
+                if (data.success) {
+                    status.innerText = "Upload Successful!";
+                    linkDiv.innerHTML = `<a href="${data.downloadLink}" target="_blank">${data.downloadLink}</a>`;
+                } else {
+                    status.innerText = "Error: " + data.error;
+                }
+            } catch (err) {
+                status.innerText = "Upload failed.";
             }
-
-            shows.forEach(show => {
-                const card = createCard(show, 'tv');
-                grid.appendChild(card);
-            });
         }
     </script>
 </body>
 </html>
-
