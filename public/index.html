@@ -1,49 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Kineflex Cloud Upload</title>
+    <title>Kineflex Uploader</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 50px; background: #f0f2f5; }
-        .card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        #link { margin-top: 20px; word-break: break-all; color: blue; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .box { background: #1e1e1e; padding: 30px; border-radius: 12px; width: 400px; text-align: center; border: 1px solid #333; }
+        input { margin: 20px 0; display: block; width: 100%; color: #ccc; }
+        button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; }
+        button:hover { background: #2563eb; }
+        #result { margin-top: 20px; word-wrap: break-word; font-size: 14px; }
+        a { color: #60a5fa; text-decoration: none; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h2>Upload to Kineflex Storage</h2>
+    <div class="box">
+        <h3>Upload to Novabox</h3>
         <input type="file" id="fileInput">
-        <button onclick="uploadFile()">Upload Now</button>
-        <div id="status"></div>
-        <div id="link"></div>
+        <button onclick="handleUpload()">Upload Now</button>
+        <div id="result"></div>
     </div>
 
     <script>
-        async function uploadFile() {
+        async function handleUpload() {
             const fileInput = document.getElementById('fileInput');
-            const status = document.getElementById('status');
-            const linkDiv = document.getElementById('link');
-
-            if (fileInput.files.length === 0) return alert("Select a file");
+            const resultDiv = document.getElementById('result');
+            
+            if (!fileInput.files[0]) return alert("Select a file first");
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
 
-            status.innerText = "Uploading...";
-            linkDiv.innerHTML = "";
+            resultDiv.innerHTML = "Processing upload...";
 
             try {
                 const response = await fetch('/upload', { method: 'POST', body: formData });
                 const data = await response.json();
 
                 if (data.success) {
-                    status.innerText = "Upload Successful!";
-                    linkDiv.innerHTML = `<a href="${data.downloadLink}" target="_blank">${data.downloadLink}</a>`;
+                    resultDiv.innerHTML = `Success! Link:<br><a href="${data.link}" target="_blank">${data.link}</a>`;
                 } else {
-                    status.innerText = "Error: " + data.error;
+                    resultDiv.innerHTML = "Error: " + data.error;
                 }
             } catch (err) {
-                status.innerText = "Upload failed.";
+                resultDiv.innerHTML = "Failed to connect to server.";
             }
         }
     </script>
