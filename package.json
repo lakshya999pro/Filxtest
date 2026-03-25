@@ -1,18 +1,18 @@
 {
-  "name": "supabase-uploader",
+  "name": "4khdub-scraper",
   "version": "1.0.0",
-  "description": "Node.js backend for uploading files to Supabase Storage and returning public links",
-  "type": "module",
-  "main": "server.js",
+  "description": "",
+  "main": "index.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "axios": "^1.7.2",
-    "cors": "^2.8.5",
-    "express": "^4.19.2",
-    "multer": "^1.4.5-lts.1",
-    "node-fetch": "^3.3.2"
+    "axios": "^1.13.6",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
   }
 }
