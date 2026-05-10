@@ -1,503 +1,66 @@
+<!-- index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>4KHD Scraper</title>
-<style>
-  :root {
-    --bg: #0f0f13;
-    --surface: #17171f;
-    --surface2: #1f1f2a;
-    --border: #2a2a38;
-    --primary: #e50914;
-    --primary2: #ff6b35;
-    --text: #e8e8f0;
-    --muted: #7070a0;
-    --accent: #4f8ef7;
-    --green: #15803d;
-    --teal: #0d9488;
-    --orange: #ea580c;
-    --gold: #f59e0b;
-    --purple: #7c3aed;
-    --blue: #1d4ed8;
-    --radius: 10px;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+  <meta charset="UTF-8">
+  <title>Fast Video Proxy</title>
+  <style>
+    body{
+      background:#111;
+      color:white;
+      font-family:Arial;
+      text-align:center;
+      padding:40px;
+    }
 
-  /* ── HEADER ── */
-  header {
-    position: sticky; top: 0; z-index: 100;
-    background: rgba(15,15,19,0.95); backdrop-filter: blur(10px);
-    border-bottom: 1px solid var(--border);
-    padding: 0 16px;
-    display: flex; align-items: center; gap: 12px; height: 56px;
-  }
-  header h1 { font-size: 1.2rem; font-weight: 800; color: var(--primary); white-space: nowrap; }
-  header h1 span { color: var(--text); }
-  .search-bar {
-    flex: 1; max-width: 400px;
-    display: flex; align-items: center;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 8px; overflow: hidden;
-  }
-  .search-bar input {
-    flex: 1; background: none; border: none; outline: none;
-    color: var(--text); padding: 8px 12px; font-size: 0.9rem;
-  }
-  .search-bar button {
-    background: var(--primary); border: none; color: #fff;
-    padding: 8px 14px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
-  }
-  .search-bar button:hover { background: #c0070f; }
-  .page-info { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+    input{
+      width:80%;
+      padding:12px;
+      border:none;
+      border-radius:10px;
+      margin-bottom:20px;
+    }
 
-  /* ── LAYOUT ── */
-  #app { min-height: calc(100vh - 56px); }
+    button{
+      padding:12px 25px;
+      border:none;
+      border-radius:10px;
+      background:#00aaff;
+      color:white;
+      cursor:pointer;
+      font-size:16px;
+    }
 
-  /* ── GRID VIEW ── */
-  #grid-view { padding: 20px 16px; max-width: 1400px; margin: 0 auto; }
-  .section-hdr {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 16px;
-  }
-  .section-hdr h2 { font-size: 1.1rem; font-weight: 700; color: var(--gold); }
-
-  .movie-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 12px;
-  }
-  @media (min-width: 600px) { .movie-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); } }
-  @media (min-width: 900px) { .movie-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); } }
-
-  .card {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); overflow: hidden;
-    cursor: pointer; transition: transform .2s, box-shadow .2s;
-  }
-  .card:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(0,0,0,.6); }
-  .card-img-wrap { position: relative; aspect-ratio: 2/3; overflow: hidden; }
-  .card-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
-  .card-badges {
-    position: absolute; top: 5px; right: 5px;
-    display: flex; flex-direction: row; flex-wrap: wrap; justify-content: flex-end;
-    gap: 3px; max-width: 90%;
-  }
-  .qbadge {
-    font-size: 8px; font-weight: 800; padding: 2px 5px;
-    border-radius: 2px; letter-spacing: .3px; text-transform: uppercase;
-  }
-  .qbadge.badge-4k   { background: linear-gradient(135deg,#d97706,#f59e0b); color:#000; }
-  .qbadge.badge-fhd  { background: rgba(40,40,50,.9); color:rgba(255,255,255,.8); border:1px solid rgba(255,255,255,.15); }
-  .qbadge.badge-hdr  { background: linear-gradient(135deg,#b91c1c,#dc2626); color:#fff; }
-  .qbadge.badge-dv   { background: #000; color:#fff; border:1px solid rgba(255,255,255,.3); }
-  .qbadge.badge-bd   { background: linear-gradient(135deg,#1d4ed8,#3b82f6); color:#fff; }
-  .qbadge.badge-remux{ background: linear-gradient(135deg,#6b21a8,#9333ea); color:#fff; }
-  .qbadge.badge-imax { background: linear-gradient(135deg,#1e3a5f,#2563eb); color:#fff; }
-  .card-overlay {
-    position: absolute; inset: 0;
-    background: linear-gradient(to top, rgba(0,0,0,.85), transparent);
-    opacity: 0; transition: opacity .2s;
-    display: flex; align-items: flex-end; padding: 8px;
-  }
-  .card:hover .card-overlay { opacity: 1; }
-  .overlay-tags { display: flex; flex-wrap: wrap; gap: 3px; }
-  .overlay-tag { background: rgba(255,255,255,.2); color:#fff; font-size:9px; padding:2px 5px; border-radius:3px; }
-  .card-info { padding: 8px 10px 10px; }
-  .card-title { font-size: .8rem; font-weight: 600; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .card-meta { font-size:.7rem; color:var(--muted); margin-top:3px; }
-
-  /* ── PAGINATION ── */
-  .pagination { display:flex; justify-content:center; align-items:center; gap:8px; margin-top:28px; flex-wrap:wrap; }
-  .page-btn {
-    background: var(--surface2); border:1px solid var(--border);
-    color:var(--text); padding:6px 12px; border-radius:6px;
-    cursor:pointer; font-size:.85rem; transition: all .15s;
-  }
-  .page-btn:hover { background:var(--primary); border-color:var(--primary); }
-  .page-btn.active { background:var(--primary); border-color:var(--primary); font-weight:700; }
-  .page-btn:disabled { opacity:.35; cursor:default; }
-
-  /* ── DETAIL VIEW ── */
-  #detail-view { display:none; padding: 16px; max-width: 1000px; margin: 0 auto; }
-  .back-btn {
-    display:inline-flex; align-items:center; gap:6px;
-    background:var(--surface2); border:1px solid var(--border);
-    color:var(--text); padding:7px 14px; border-radius:8px;
-    cursor:pointer; font-size:.85rem; margin-bottom:20px;
-    transition: background .15s;
-  }
-  .back-btn:hover { background:var(--border); }
-  .detail-grid { display:grid; grid-template-columns:1fr; gap:24px; }
-  @media(min-width:640px){ .detail-grid { grid-template-columns: 220px 1fr; } }
-
-  .detail-poster { border-radius:var(--radius); overflow:hidden; }
-  .detail-poster img { width:100%; display:block; border-radius:var(--radius); }
-
-  .detail-title { font-size:1.5rem; font-weight:800; line-height:1.2; margin-bottom:6px; }
-  .detail-tagline { font-size:.95rem; font-style:italic; color:var(--muted); margin-bottom:12px; }
-  .detail-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
-  .detail-tag { background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-size:.75rem; padding:3px 10px; border-radius:20px; }
-  .detail-desc { font-size:.9rem; line-height:1.6; color:#c5c5d5; margin-bottom:16px; }
-  .meta-table { font-size:.85rem; margin-bottom:16px; }
-  .meta-row { display:flex; gap:8px; padding:4px 0; border-bottom:1px solid var(--border); }
-  .meta-label { color:var(--muted); width:80px; flex-shrink:0; font-weight:600; }
-  .meta-val { color:var(--text); flex:1; }
-  .meta-val.audios { color: #ff9800; font-weight:600; }
-
-  /* ── DOWNLOADS ── */
-  .dl-section-title {
-    font-size:1.1rem; font-weight:700; color:var(--gold);
-    margin: 20px 0 10px; border-left:3px solid var(--primary); padding-left:10px;
-  }
-  .dl-item { border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:10px; }
-  .dl-header {
-    background:var(--surface2); padding:10px 14px;
-    cursor:pointer; display:flex; align-items:center; justify-content:space-between;
-    transition: background .15s; user-select:none;
-  }
-  .dl-header:hover { background: rgba(79,142,247,.12); }
-  .dl-header.open { background: rgba(79,142,247,.18); border-bottom:1px solid var(--border); }
-  .dl-header-left { flex:1; }
-  .dl-header-title { font-size:.9rem; font-weight:700; margin-bottom:4px; }
-  .dl-badges { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
-  .dl-badge { font-size:.7rem; padding:2px 8px; border-radius:4px; font-weight:600; }
-  .dl-badge.size   { background:var(--orange); color:#fff; }
-  .dl-badge.audio  { background:var(--teal); color:#fff; }
-  .dl-badge.source { background:var(--green); color:#fff; }
-  .dl-chevron { flex-shrink:0; transition:transform .2s; color:var(--muted); }
-  .dl-chevron.open { transform: rotate(180deg); }
-  .dl-body { display:none; padding:12px 14px; }
-  .dl-body.open { display:block; }
-  .dl-filename {
-    font-family:'Courier New',monospace; font-size:.75rem; color:#62b6ff;
-    background:rgba(0,0,0,.3); padding:6px 10px; border-radius:5px;
-    word-break:break-all; margin-bottom:12px;
-    border-top:2px solid rgba(79,142,247,.3);
-    border-bottom:2px solid rgba(79,142,247,.3);
-  }
-  .dl-tech-badges { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:12px; }
-  .dl-tech-badge { background:var(--surface2); border:1px solid var(--border); color:var(--muted); font-size:.7rem; padding:2px 8px; border-radius:4px; }
-
-  /* HubCloud button */
-  .hubcloud-btn {
-    display:flex; align-items:center; justify-content:space-between;
-    background: linear-gradient(135deg, #1a5adb, #2d7aff);
-    color:#fff; border:none; border-radius:8px;
-    padding:10px 16px; width:100%; cursor:pointer;
-    font-size:.9rem; font-weight:700; margin-bottom:6px;
-    transition: filter .15s, transform .1s;
-    text-decoration:none;
-  }
-  .hubcloud-btn:hover { filter:brightness(1.15); transform:translateY(-1px); }
-  .hubcloud-btn:active { transform:translateY(0); }
-  .hubcloud-btn svg { flex-shrink:0; }
-
-  /* ── LOADING / ERROR ── */
-  .loader {
-    display:flex; flex-direction:column; align-items:center;
-    justify-content:center; gap:14px; padding:60px 20px;
-  }
-  .spinner {
-    width:42px; height:42px; border:4px solid var(--border);
-    border-top-color:var(--primary); border-radius:50%;
-    animation: spin .7s linear infinite;
-  }
-  @keyframes spin { to { transform:rotate(360deg); } }
-  .loader p { color:var(--muted); font-size:.9rem; }
-  .error-box {
-    background:rgba(229,9,20,.1); border:1px solid rgba(229,9,20,.3);
-    border-radius:var(--radius); padding:16px 20px; color:#ff7070;
-    margin:20px 0; font-size:.9rem;
-  }
-  .empty-msg { text-align:center; padding:40px; color:var(--muted); }
-
-  /* ── RELATED ── */
-  .related-grid {
-    display:grid; grid-template-columns:repeat(auto-fill, minmax(120px,1fr)); gap:10px;
-    margin-top:10px;
-  }
-  .related-card { cursor:pointer; border-radius:8px; overflow:hidden; border:1px solid var(--border); transition:transform .2s; }
-  .related-card:hover { transform:translateY(-3px); }
-  .related-card img { width:100%; aspect-ratio:2/3; object-fit:cover; display:block; }
-  .related-card-title { font-size:.7rem; font-weight:600; padding:5px 6px; background:var(--surface); }
-  .related-card-meta  { font-size:.65rem; color:var(--muted); padding:0 6px 5px; background:var(--surface); }
-</style>
+    video{
+      width:90%;
+      margin-top:30px;
+      border-radius:15px;
+    }
+  </style>
 </head>
 <body>
 
-<header>
-  <h1>4K<span>HDHub</span></h1>
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="Search movies & series…" onkeydown="if(event.key==='Enter')doSearch()">
-    <button onclick="doSearch()">Search</button>
-  </div>
-  <span class="page-info" id="pageInfo"></span>
-</header>
+<h1>Video Proxy Stream</h1>
 
-<div id="app">
-  <!-- Grid view -->
-  <div id="grid-view">
-    <div class="section-hdr">
-      <h2 id="sectionTitle">Latest Releases</h2>
-    </div>
-    <div id="movieGrid" class="movie-grid"></div>
-    <div class="pagination" id="pagination"></div>
-  </div>
+<input id="url" placeholder="Paste Catbox MP4 URL">
 
-  <!-- Detail view -->
-  <div id="detail-view">
-    <button class="back-btn" onclick="showGrid()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-      Back
-    </button>
-    <div id="detailContent"></div>
-  </div>
-</div>
+<br>
+
+<button onclick="playVideo()">Play</button>
+
+<br>
+
+<video id="video" controls></video>
 
 <script>
-// ── State ─────────────────────────────────────────────────────
-let currentPage = 1;
-let currentSearch = '';
-let currentTitle = ''; // for playMedia
+function playVideo(){
+    const url = document.getElementById("url").value;
 
-// ── Helpers ───────────────────────────────────────────────────
-function API(path) {
-  return path; // relative to same origin (Node server)
+    document.getElementById("video").src =
+        "http://localhost:3000/proxy?url=" +
+        encodeURIComponent(url);
 }
-
-function badgeClass(cls) {
-  if (cls.includes('badge-4k'))    return 'badge-4k';
-  if (cls.includes('badge-fhd'))   return 'badge-fhd';
-  if (cls.includes('badge-hdr'))   return 'badge-hdr';
-  if (cls.includes('badge-dv'))    return 'badge-dv';
-  if (cls.includes('badge-bd'))    return 'badge-bd';
-  if (cls.includes('badge-remux')) return 'badge-remux';
-  if (cls.includes('badge-imax'))  return 'badge-imax';
-  return 'badge-fhd';
-}
-
-// ── playMedia  ────────────────────────────────────────────────
-function playMedia(url, type) {
-  const videoData = { title: currentTitle, url: url, type: type };
-  console.log('Sending to Android:', videoData);
-  if (window.AndroidApp && window.AndroidApp.playVideo) {
-    AndroidApp.playVideo(JSON.stringify(videoData));
-  } else {
-    alert('Android Bridge not found.\nURL: ' + url);
-  }
-}
-
-// ── Render helpers ────────────────────────────────────────────
-function setLoading(container, msg = 'Loading…') {
-  container.innerHTML = `<div class="loader"><div class="spinner"></div><p>${msg}</p></div>`;
-}
-
-function setError(container, msg) {
-  container.innerHTML = `<div class="error-box">⚠ ${msg}</div>`;
-}
-
-// ── Load movies grid ──────────────────────────────────────────
-async function loadMovies(page = 1, search = '') {
-  currentPage = page;
-  currentSearch = search;
-
-  const grid = document.getElementById('movieGrid');
-  const pgn  = document.getElementById('pagination');
-  const info = document.getElementById('pageInfo');
-
-  setLoading(grid, 'Fetching movies…');
-  pgn.innerHTML = '';
-  info.textContent = '';
-
-  let qs = `/api/movies?page=${page}`;
-  if (search) qs += `&search=${encodeURIComponent(search)}`;
-
-  try {
-    const res  = await fetch(qs);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-
-    document.getElementById('sectionTitle').textContent =
-      search ? `Results for "${search}"` : `Latest Releases`;
-    info.textContent = `Page ${page} / ${data.pagination.total}`;
-
-    if (!data.movies.length) {
-      grid.innerHTML = '<p class="empty-msg">No movies found.</p>';
-      return;
-    }
-
-    grid.innerHTML = data.movies.map(m => `
-      <div class="card" onclick="loadDetail('${m.href}')">
-        <div class="card-img-wrap">
-          <img src="${m.img}" alt="${m.altText}" loading="lazy" onerror="this.src='https://via.placeholder.com/200x300/17171f/444?text=No+Image'">
-          <div class="card-badges">
-            ${m.badges.map(b => `<span class="qbadge ${badgeClass(b.cls)}">${b.text}</span>`).join('')}
-          </div>
-          <div class="card-overlay">
-            <div class="overlay-tags">
-              ${m.formats.slice(0,8).map(f => `<span class="overlay-tag">${f}</span>`).join('')}
-            </div>
-          </div>
-        </div>
-        <div class="card-info">
-          <div class="card-title">${m.title}</div>
-          <div class="card-meta">${m.meta}</div>
-        </div>
-      </div>`).join('');
-
-    // Pagination
-    renderPagination(page, data.pagination.total, data.pagination.pages);
-  } catch (e) {
-    setError(grid, e.message);
-  }
-}
-
-function renderPagination(current, total, pages) {
-  const pgn = document.getElementById('pagination');
-  if (total <= 1) return;
-
-  const uniquePages = [...new Set([1, current-1, current, current+1, total].filter(p => p >= 1 && p <= total))].sort((a,b)=>a-b);
-
-  let html = `<button class="page-btn" onclick="loadMovies(${current-1},'${currentSearch}')" ${current===1?'disabled':''}>&#8249;</button>`;
-  let prev = 0;
-  for (const p of uniquePages) {
-    if (prev && p - prev > 1) html += `<span style="color:var(--muted)">…</span>`;
-    html += `<button class="page-btn ${p===current?'active':''}" onclick="loadMovies(${p},'${currentSearch}')">${p}</button>`;
-    prev = p;
-  }
-  html += `<button class="page-btn" onclick="loadMovies(${current+1},'${currentSearch}')" ${current===total?'disabled':''}>&#8250;</button>`;
-  pgn.innerHTML = html;
-}
-
-// ── Load detail page ──────────────────────────────────────────
-async function loadDetail(slug) {
-  document.getElementById('grid-view').style.display   = 'none';
-  document.getElementById('detail-view').style.display = 'block';
-  window.scrollTo(0, 0);
-
-  const content = document.getElementById('detailContent');
-  setLoading(content, 'Loading movie details…');
-
-  try {
-    const res  = await fetch(`/api/detail?url=${encodeURIComponent(slug)}`);
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error);
-
-    currentTitle = data.title;
-
-    const metaRows = Object.entries(data.metadata).map(([k,v]) => `
-      <div class="meta-row">
-        <span class="meta-label">${k}</span>
-        <span class="meta-val ${k==='Audios'?'audios':''}">${v}</span>
-      </div>`).join('');
-
-    const dlSections = data.downloadSections.length ? `
-      <div class="dl-section-title">⬇ Download Links (HubCloud)</div>
-      ${data.downloadSections.map((s, i) => `
-        <div class="dl-item">
-          <div class="dl-header" onclick="toggleDL(this, ${i})">
-            <div class="dl-header-left">
-              <div class="dl-header-title">${s.headerTitle}</div>
-              <div class="dl-badges">
-                ${s.badges.map(b => `<span class="dl-badge ${guessBadgeType(b)}">${b}</span>`).join('')}
-              </div>
-            </div>
-            <svg class="dl-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
-          </div>
-          <div class="dl-body" id="dlbody-${i}">
-            ${s.fileName ? `<div class="dl-filename">${s.fileName}</div>` : ''}
-            <div class="dl-tech-badges">
-              ${s.techBadges.map(b=>`<span class="dl-tech-badge">${b}</span>`).join('')}
-            </div>
-            ${s.hubcloudLinks.map(l => `
-              <button class="hubcloud-btn" onclick="playMedia('${l.url}', 'hubcloud')">
-                <span>☁ ${l.label}</span>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              </button>`).join('')}
-          </div>
-        </div>`).join('')}
-    ` : `<div class="error-box">No HubCloud links found for this title.</div>`;
-
-    const related = data.related.length ? `
-      <div class="dl-section-title" style="margin-top:32px">You May Also Like</div>
-      <div class="related-grid">
-        ${data.related.slice(0,12).map(r => `
-          <div class="related-card" onclick="loadDetail('${r.href}')">
-            <img src="${r.img}" alt="${r.title}" loading="lazy" onerror="this.src='https://via.placeholder.com/120x180/17171f/444?text=?'">
-            <div class="related-card-title">${r.title}</div>
-            <div class="related-card-meta">${r.meta}</div>
-          </div>`).join('')}
-      </div>` : '';
-
-    content.innerHTML = `
-      <div class="detail-grid">
-        <div class="detail-poster">
-          <img src="${data.poster}" alt="${data.title}" onerror="this.src='https://via.placeholder.com/220x330/17171f/444?text=No+Poster'">
-        </div>
-        <div class="detail-main">
-          <div class="detail-title">${data.title}</div>
-          ${data.tagline ? `<div class="detail-tagline">${data.tagline}</div>` : ''}
-          <div class="detail-tags">
-            ${data.tags.map(t=>`<span class="detail-tag">${t}</span>`).join('')}
-          </div>
-          ${data.description ? `<p class="detail-desc">${data.description}</p>` : ''}
-          <div class="meta-table">${metaRows}</div>
-          ${data.trailerUrl ? `
-            <button onclick="openTrailer('${data.trailerUrl}')" style="background:#c00;color:#fff;border:none;padding:7px 16px;border-radius:7px;cursor:pointer;font-weight:700;margin-bottom:16px;">
-              ▶ Watch Trailer
-            </button>` : ''}
-        </div>
-      </div>
-      ${dlSections}
-      ${related}
-    `;
-  } catch(e) {
-    setError(content, e.message);
-  }
-}
-
-// ── Toggle download accordion ─────────────────────────────────
-function toggleDL(header, idx) {
-  const body = document.getElementById(`dlbody-${idx}`);
-  const chevron = header.querySelector('.dl-chevron');
-  const open = body.classList.toggle('open');
-  header.classList.toggle('open', open);
-  chevron.classList.toggle('open', open);
-}
-
-// ── Badge type helper ─────────────────────────────────────────
-function guessBadgeType(text) {
-  const t = text.toLowerCase();
-  if (/\d+(\.\d+)?\s*(gb|mb)/i.test(t)) return 'size';
-  if (/hindi|english|tamil|telugu|japanese|korean|multi/i.test(t)) return 'audio';
-  return 'source';
-}
-
-// ── Views ─────────────────────────────────────────────────────
-function showGrid() {
-  document.getElementById('detail-view').style.display = 'none';
-  document.getElementById('grid-view').style.display   = 'block';
-}
-
-function doSearch() {
-  const q = document.getElementById('searchInput').value.trim();
-  loadMovies(1, q);
-}
-
-// ── Trailer ───────────────────────────────────────────────────
-function openTrailer(url) {
-  const w = window.open('', '_blank', 'width=860,height=520,menubar=no,toolbar=no');
-  if (w) {
-    w.document.write(`<!DOCTYPE html><html><head><style>*{margin:0;padding:0;background:#000}</style></head>
-    <body><iframe src="${url}" width="100%" height="100%" style="position:fixed;inset:0;width:100%;height:100%;border:none" allow="autoplay;encrypted-media" allowfullscreen></iframe></body></html>`);
-  }
-}
-
-// ── Init ──────────────────────────────────────────────────────
-loadMovies(1);
 </script>
+
 </body>
 </html>
