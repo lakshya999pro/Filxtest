@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TeraBox Auto Uploader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #0a0c10;
+      --surface:   #0f1318;
+      --card:      #141920;
+      --border:    #1e2530;
+      --accent:    #00d4ff;
+      --accent2:   #7c3aed;
+      --success:   #00e878;
+      --danger:    #ff4757;
+      --warn:      #ffb830;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --mono:      'JetBrains Mono', monospace;
+      --sans:      'Syne', sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.35;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -20%;
+      width: 60%;
+      height: 80%;
+      background: radial-gradient(ellipse, rgba(0, 212, 255, 0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      background: rgba(10, 12, 16, 0.85);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 0;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .logo-text {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-text span { color: var(--accent); }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+
+    .status-dot.running { background: var(--success); animation: pulse-dot 1.5s infinite; }
+    .status-dot.paused  { background: var(--warn); }
+    .status-dot.idle    { background: var(--muted); }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 232, 120, 0.4); }
+      50%       { opacity: 0.7; box-shadow: 0 0 0 6px rgba(0, 232, 120, 0); }
+    }
+
+    /* ── Main Layout ── */
+    main {
+      padding: 32px 0 64px;
+    }
+
+    /* ── Stat Cards ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent-color, var(--accent));
+      opacity: 0.6;
+    }
+
+    .stat-card:hover { border-color: rgba(0, 212, 255, 0.2); }
+
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 800;
+      font-family: var(--mono);
+      color: var(--accent-color, var(--accent));
+      line-height: 1;
+    }
+
+    /* ── Controls ── */
+    .controls-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .controls-left {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .controls-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .page-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .page-input input {
+      width: 70px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .page-input input:focus { border-color: var(--accent); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-start {
+      background: linear-gradient(135deg, var(--accent), #0099cc);
+      color: #000;
+    }
+    .btn-start:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0, 212, 255, 0.3);
+    }
+
+    .btn-stop {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(255, 71, 87, 0.3);
+    }
+    .btn-stop:hover:not(:disabled) {
+      background: rgba(255, 71, 87, 0.25);
+    }
+
+    .btn-pause {
+      background: rgba(255, 184, 48, 0.12);
+      color: var(--warn);
+      border: 1px solid rgba(255, 184, 48, 0.25);
+    }
+    .btn-pause:hover:not(:disabled) {
+      background: rgba(255, 184, 48, 0.2);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      color: var(--text);
+      border-color: var(--muted);
+    }
+
+    /* ── Current Video ── */
+    .current-video-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      min-height: 100px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      transition: border-color 0.3s;
+    }
+
+    .current-video-panel.active {
+      border-color: rgba(0, 212, 255, 0.3);
+      box-shadow: 0 0 40px rgba(0, 212, 255, 0.05);
+    }
+
+    .current-thumb {
+      width: 100px;
+      height: 60px;
+      border-radius: 8px;
+      object-fit: cover;
+      background: var(--surface);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 24px;
+      overflow: hidden;
+    }
+
+    .current-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    .current-info { flex: 1; min-width: 0; }
+
+    .current-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .current-title {
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .current-idle {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .processing-bar {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .processing-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      animation: indeterminate 1.5s infinite ease-in-out;
+    }
+
+    @keyframes indeterminate {
+      0%   { transform: translateX(-100%) scaleX(0.5); }
+      100% { transform: translateX(200%) scaleX(1); }
+    }
+
+    .queue-badge {
+      background: rgba(0, 212, 255, 0.1);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+
+    /* ── Grid ── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .panel-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      background: var(--border);
+      color: var(--muted);
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 380px;
+    }
+
+    /* ── Log Console ── */
+    .log-console {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 12px;
+    }
+
+    .log-entry {
+      display: flex;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      margin-bottom: 2px;
+      animation: slide-in 0.15s ease;
+      transition: background 0.1s;
+    }
+
+    .log-entry:hover { background: rgba(255,255,255,0.03); }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-time { color: var(--muted); flex-shrink: 0; }
+
+    .log-level {
+      flex-shrink: 0;
+      font-weight: 700;
+      width: 42px;
+    }
+
+    .log-level.info  { color: var(--accent); }
+    .log-level.warn  { color: var(--warn); }
+    .log-level.error { color: var(--danger); }
+
+    .log-msg { color: var(--text); word-break: break-all; }
+
+    /* ── Upload Table ── */
+    .upload-list { list-style: none; }
+
+    .upload-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      animation: slide-in 0.2s ease;
+      transition: background 0.1s;
+    }
+
+    .upload-item:last-child { border-bottom: none; }
+    .upload-item:hover { background: rgba(255,255,255,0.02); }
+
+    .upload-thumb {
+      width: 56px;
+      height: 34px;
+      border-radius: 5px;
+      background: var(--surface);
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .upload-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+    .upload-info { flex: 1; min-width: 0; }
+
+    .upload-title {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+
+    .upload-meta {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 20px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .badge-success { background: rgba(0, 232, 120, 0.12); color: var(--success); }
+    .badge-failed  { background: rgba(255, 71, 87, 0.12);  color: var(--danger); }
+    .badge-processing { background: rgba(0, 212, 255, 0.12); color: var(--accent); }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 20px;
+      color: var(--muted);
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .empty-icon { font-size: 32px; opacity: 0.4; }
+
+    /* ── Toast ── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .toast {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 13px;
+      min-width: 280px;
+      max-width: 380px;
+      animation: toast-in 0.25s ease;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error   { border-left: 3px solid var(--danger); }
+    .toast.info    { border-left: 3px solid var(--accent); }
+
+    @keyframes toast-in {
+      from { opacity: 0; transform: translateX(20px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">📦</div>
+        <div class="logo-text">Tera<span>Upload</span></div>
+      </div>
+      <div class="header-status">
+        <div class="status-dot idle" id="statusDot"></div>
+        <span id="statusText">Idle</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="container">
+
+    <!-- Stat Cards -->
+    <div class="stats-grid">
+      <div class="stat-card" style="--accent-color: var(--accent)">
+        <div class="stat-label">Total Processed</div>
+        <div class="stat-value" id="statTotal">0</div>
+      </div>
+      <div class="stat-card" style="--accent-color: var(--success)">
+        <div class="stat-label">Uploaded</div>
+        <div class="stat-value" id="statSuccess">0</div>
+      </div>
+      <div class="stat-card" style="--accent-color: var(--danger)">
+        <div class="stat-label">Failed</div>
+        <div class="stat-value" id="statFailed">0</div>
+      </div>
+      <div class="stat-card" style="--accent-color: #a78bfa)">
+        <div class="stat-label">In Queue</div>
+        <div class="stat-value" id="statQueued" style="color:#a78bfa">0</div>
+      </div>
+      <div class="stat-card" style="--accent-color: var(--warn)">
+        <div class="stat-label">Active Jobs</div>
+        <div class="stat-value" id="statActive" style="color:var(--warn)">0</div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-panel">
+      <div class="controls-left">
+        <button class="btn btn-start" id="btnStart" onclick="handleStart()">
+          ▶ Start
+        </button>
+        <button class="btn btn-pause" id="btnPause" onclick="handlePause()" disabled>
+          ⏸ Pause
+        </button>
+        <button class="btn btn-stop" id="btnStop" onclick="handleStop()" disabled>
+          ⏹ Stop
+        </button>
+        <button class="btn btn-secondary" onclick="refreshUploads()">
+          ↻ Refresh
+        </button>
+        <button class="btn btn-secondary" onclick="handleRefreshToken()" id="btnRefreshToken" title="Force refresh FlowVideoPlayer auth token">
+          🔑 Refresh Token
+        </button>
+      </div>
+      <div class="controls-right">
+        <div id="tokenStatusBadge" style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;color:var(--muted);background:var(--surface);border:1px solid var(--border);padding:6px 12px;border-radius:20px;">
+          <span id="tokenDot" style="width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;"></span>
+          <span id="tokenLabel">Token: checking…</span>
+        </div>
+        <div class="page-input">
+          <label for="pageInput">Page:</label>
+          <input type="number" id="pageInput" value="10" min="1" max="999" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Current Video -->
+    <div class="current-video-panel" id="currentVideoPanel">
+      <div class="current-thumb" id="currentThumb">🎬</div>
+      <div class="current-info">
+        <div class="current-label" id="currentLabel" style="display:none">Now Processing</div>
+        <div class="current-title current-idle" id="currentTitle">No video processing. Press Start to begin.</div>
+        <div class="processing-bar" id="progressBar" style="display:none">
+          <div class="processing-bar-fill"></div>
+        </div>
+      </div>
+      <div class="queue-badge" id="queueBadge">Queue: 0</div>
+    </div>
+
+    <!-- Grid: Logs + Uploads -->
+    <div class="grid-2">
+
+      <!-- Log Console -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📋 Live Logs</span>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="panel-badge" id="logCount">0 entries</span>
+            <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onclick="clearLogs()">Clear</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="log-console" id="logConsole">
+            <div class="empty-state">
+              <div class="empty-icon">📋</div>
+              <div>Logs will appear here</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Upload Results -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">✅ Upload Results</span>
+          <span class="panel-badge" id="uploadCount">0 items</span>
+        </div>
+        <div class="panel-body">
+          <ul class="upload-list" id="uploadList">
+            <li class="empty-state">
+              <div class="empty-icon">📤</div>
+              <div>Upload results will appear here</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let state = { isRunning: false, isPaused: false };
+  let logEntries = [];
+  let evtSource  = null;
+
+  // ── SSE Connection ─────────────────────────────────────────────────────────
+  function connectSSE() {
+    if (evtSource) evtSource.close();
+    evtSource = new EventSource('/api/events');
+
+    evtSource.addEventListener('status',       e => applyStatus(JSON.parse(e.data)));
+    evtSource.addEventListener('log',          e => addLog(JSON.parse(e.data)));
+    evtSource.addEventListener('currentVideo', e => setCurrentVideo(JSON.parse(e.data)));
+    evtSource.addEventListener('queueUpdate',  e => updateQueue(JSON.parse(e.data)));
+    evtSource.addEventListener('uploadSuccess',e => { addUploadItem(JSON.parse(e.data)); refreshStats(); });
+    evtSource.addEventListener('uploadFailed', e => { addUploadItem(JSON.parse(e.data)); refreshStats(); });
+    evtSource.addEventListener('started',      e => { state.isRunning = true; state.isPaused = false; syncUI(); });
+    evtSource.addEventListener('stopped',      e => { state.isRunning = false; state.isPaused = false; syncUI(); toast('Pipeline stopped', 'info'); });
+    evtSource.addEventListener('paused',       e => { state.isPaused = t
